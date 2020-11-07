@@ -1,0 +1,182 @@
+<!DOCTYPE html> 
+<html> 
+  
+<head> 
+    <title>RAM</title> 
+</head>
+<body>
+    <input type="file" name="arquivotxt" id="arquivotxt"> 
+    <br> 
+   
+    <pre id="output"></pre> 
+	
+	<table border="0" cellspacing="1" cellpadding="1">
+		<tbody>
+				<tr>
+					 <td><span>Angulo:</span></td>
+					 <td><input id="angulo" type="text" value="" style="width:4em"></td>
+				</tr>
+				<tr>
+					 <td><span>axiomaa:</span></td>
+					 <td><input id="axiomaa" type="text" value="" style="width:12em"></td>
+				</tr>
+				<tr>
+					 <td><span>Regra1:</span></td>
+					 <td><input id="regra1" type="text" value="" style="width:30em"></td>
+				</tr>
+				<tr>
+					 <td><span>Regra2:</span></td>
+					 <td><input id="regra2" type="text" value="" style="width:30em"></td>
+				</tr>
+		</tbody>
+	</table>
+</body>
+<script src="p5.min.js" type="text/javascript"></script>
+
+<script type="text/javascript"> 
+var origin = new Object();
+origin.x = 404;
+origin.y = 278;
+
+var numIters = 6;
+	
+var arvore = {
+  params: {
+    angulo: 25,
+    length: 2,
+  },
+  axioma: 'X',
+  regras: {
+	X: 'F-[[X]+X]+F[+FX]-X',
+    F: 'FF',
+  },
+  commands: {
+    'F': drawForward,
+    '-'(drawingState, params) {
+      drawingState.state.direction -= params.angulo;
+    },
+    '+'(drawingState, params) {
+      drawingState.state.direction += params.angulo;
+    },
+    '['(drawingState, params) {
+      drawingState.push();
+    },
+    ']'(drawingState, params) {
+      drawingState.pop();
+    },
+  }
+}
+
+var system = arvore;
+
+document.getElementById('arquivotxt') 
+	.addEventListener('change', function() { 
+	  
+	var fr=new FileReader(); 
+	system = arvore;
+	
+	fr.onload=function(){ 
+		//document.getElementById('output').textContent=fr.result;
+		var resultado = fr.result.split(",");
+		if (resultado.length>0)
+		{
+			document.getElementById('angulo').value=resultado[0];
+			document.getElementById('axiomaa').value=resultado[1];
+			document.getElementById('regra1').value=resultado[2];
+			document.getElementById('regra2').value=resultado[3];
+			system.axioma = resultado[1];
+			system.params.angulo = parseInt(resultado[0]);
+			system.regras.X = resultado[2];
+			system.regras.F = resultado[3];
+			let systemState = system.axioma;
+			for (let i = 1; i < numIters; i++) {
+				const drawingState = new DrawingState(origin, -90);
+				const shouldDraw = i === numIters - 1;
+				systemState = renderAGeneration(system, systemState, drawingState, shouldDraw);
+			}
+		}
+	} 
+	fr.readAsText(this.files[0]);
+
+});
+		
+class Point {
+  constructor(xOrPoint, y) {
+    if (xOrPoint.x !== undefined && xOrPoint.y !== undefined) {
+      this.x = xOrPoint.x;
+      this.y = xOrPoint.y;
+    } else {
+      this.x = xOrPoint;
+      this.y = y;
+    }
+  }
+}
+
+class DrawingState {
+  constructor(position, direction) {
+    this.state = Object.create(null);
+    this.state.position = position && new Point(position.x, position.y) || new Point(0, 0);
+    this.state.direction = direction || 0; // right
+    this.stack = [];
+  }
+
+  push() {
+    this.stack.push(JSON.stringify(this.state));
+  }
+
+  pop() {
+    this.state = JSON.parse(this.stack.pop() || '{}');
+  }
+
+  get depth() {
+    return this.stack.length;
+  }
+}
+
+function drawForward(drawingState, params) {
+  let {x, y} = drawingState.state.position;
+  let d = drawingState.state.direction;
+  let newX = x + params.length * cos(d);
+  let newY = y + params.length * sin(d);
+  push();
+  strokeWeight(drawingState.state.strokeWeight || 1);
+  line(x, y, newX, newY);
+  pop();
+  drawingState.state.position.x = newX;
+  drawingState.state.position.y = newY;
+};
+
+
+function applyregra(regras, char) {
+  return regras[char] || char;
+}
+
+function renderAGeneration (system, previousGeneration, drawingState, draw=true) {
+  let nextGeneration = '';
+  for (const character of previousGeneration) {
+    const nextCharacters = applyregra(system.regras, character);
+    nextGeneration += nextCharacters;
+    if (draw) {
+      for (const character of nextCharacters) {
+        if (system.commands[character]) {
+        	system.commands[character](drawingState, system.params);
+      	}
+      }
+    }
+  }
+  return nextGeneration;
+}
+
+const CANVAS_BOUNDS = new Point(1000, 1000);
+
+function setup() {
+  createCanvas(CANVAS_BOUNDS.x, CANVAS_BOUNDS.y);
+  angleMode(DEGREES);
+  noLoop();
+}
+
+
+</script>
+
+</html> 
+  
